@@ -1,0 +1,15 @@
+{
+  "name": "class-gpt",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "author": "Ishan Sethi",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^29.1.0"
+  }
+  
+}
