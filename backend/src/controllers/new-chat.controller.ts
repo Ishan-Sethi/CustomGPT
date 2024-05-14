@@ -9,12 +9,13 @@ import { initSettings } from "./engine/settings";
 export const createNewChat = async (req: Request, res: Response) => {
   try {
     initSettings();
+    // @ts-expect-error
       const uploadedFile: any = req.files.file;
       console.log(uploadedFile);
       const baseURL = path.resolve(path.dirname(''));
 
       const cacheDir = path.join(baseURL, "cache");
-      const directoryName = uploadedFile.name.replace(/\.[^/.]+$/, "").replace(/[\s.]+/g, "");
+      const directoryName = uploadedFile.name.replace(/\.[^/.]+$/, "").replace(/[\s.]+/g, "") + new Date().getTime();
       const newFolderPath = path.join(cacheDir, directoryName);
       console.log(newFolderPath);
       fs.mkdirSync(newFolderPath);
@@ -24,14 +25,16 @@ export const createNewChat = async (req: Request, res: Response) => {
       setCachePath(directoryName);
       await (generateDatasource(newFolderDataPath, newFolderPath)).then(() => {
         const oldChats = fs.readFileSync(path.join(cacheDir, "chats.json"));
+        // @ts-expect-error
         let newChats = JSON.parse(oldChats);
         newChats.push({
-            id: newChats.length,
+            key: directoryName,
             chatName: uploadedFile.name,
             cachePath: `/${directoryName}`
         })
         fs.writeFileSync(path.join(cacheDir, "chats.json"), JSON.stringify(newChats));
-        res.status(200).send("File uploaded");
+        fs.writeFileSync(path.join(newFolderPath, "messages.json"), "[]")
+        res.status(200).send(newChats);
       });
     } catch (error) {
       console.error("Error creating new chat:", error);

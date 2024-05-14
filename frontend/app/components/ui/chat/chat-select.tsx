@@ -1,13 +1,44 @@
 import path from "path";
 import { ChatHandler } from "./chat.interface";
 import axios from "axios"; // Import axios for HTTP requests
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, useState, useEffect } from "react";
 
 export default function ChatSelect(
-  props: Pick<ChatHandler, | "cachePath" | "setPath" | "messages" | "setMessages" >
+  props: Pick<ChatHandler, | "cachePath" | "setPath" | "messages" | "setMessages" | "isLoading">
 ) {
 
   const [file, setFile] = useState<File | null>(null);
+  const [chatData, setChatData] = useState<any>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await axios.get('http://localhost:8000/api/chat/get-chats/');
+        setChatData(response.data); // Update state with fetched data
+        if (response.data[0]) {
+          console.log(response.data[0]);
+          handleChatSwitch(response.data[0].cachePath);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const sendMessages = async () => {
+      console.log("sending message history");
+      try {
+        const response = await axios.post(`http://localhost:8000/api/chat/set-message-cache/`, {cachePath: props.cachePath, messages: props.messages});
+      } catch (error) {
+        console.error("Error fetching cached message:", error);
+      }
+    };
+    if(!props.isLoading) {      
+      sendMessages();
+    }
+  }, [props.isLoading]);
 
   const createNewChat = async() => {
     if (!file) {
@@ -30,7 +61,9 @@ export default function ChatSelect(
         }
       );
 
-      console.log("New chat created:", response.data);
+      setChatData(response.data);
+      props.setPath(response.data.slice(-1)[0].cachePath);
+      props.setMessages([]);
     } catch (error) {
       console.error("Error creating new chat:", error);
     }
@@ -40,7 +73,7 @@ export default function ChatSelect(
     setFile(event.target.files[0]);
   };
 
-  const handleButtonClick = async (path: string) => {
+  const handleChatSwitch = async (path: string) => {
     props.setPath(path); // Set the cachePath in your parent component
 
     // Getting the chat history
@@ -58,15 +91,19 @@ export default function ChatSelect(
     }
   };
 
+  const chatList = chatData.map((chatItem: any) => {
+    return (
+      <button onClick={() => handleChatSwitch(chatItem.cachePath)} key={chatItem.key}>{chatItem.chatName}</button>
+    );    
+  });
+
     return (
       <div className="rounded-xl bg-white p-4 shadow-xl w-[25%] flex flex-col">
         Chat select
         
         <input name="file" type="file" onChange={handleFileChange}  />
         <button onClick={() => createNewChat()}>New Chat</button>
-        <button onClick={() => handleButtonClick("/uber")}>Uber</button>
-        <button onClick={() => handleButtonClick("/research_paper")}>Paper</button>
-        <button onClick={() => console.log(props.messages)}>log current messages</button>
+        {chatList}
       </div> 
     )
 }

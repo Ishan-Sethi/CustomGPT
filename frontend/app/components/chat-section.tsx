@@ -36,6 +36,7 @@ export default function ChatSection() {
           setMessages={setMessages}
           cachePath={path}
           setPath={setPath}
+          isLoading={isLoading}
         />
         <ChatMessages
           messages={messages}

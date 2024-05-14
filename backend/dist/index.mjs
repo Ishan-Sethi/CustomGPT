@@ -269,7 +269,8 @@ var chat = (req, res) => __async(void 0, null, function* () {
 
 // src/controllers/message-cache.controller.ts
 import path from "path";
-var messageCache = (req, res) => __async(void 0, null, function* () {
+import fs from "fs";
+var getMessageCache = (req, res) => __async(void 0, null, function* () {
   try {
     console.log(req.query.cachePath);
     const cachePath = req.query.cachePath;
@@ -285,10 +286,39 @@ var messageCache = (req, res) => __async(void 0, null, function* () {
     });
   }
 });
+var setMessagesCache = (req, res) => __async(void 0, null, function* () {
+  try {
+    console.log(req.body);
+    const cachePath = req.body.cachePath;
+    const messages = req.body.messages;
+    const baseURL = path.resolve(path.dirname(""));
+    const filePath = path.join(baseURL, "cache", cachePath, "messages.json");
+    fs.writeFileSync(filePath, JSON.stringify(messages));
+    res.status(200).send("Message History Saved");
+  } catch (error) {
+    console.error("[Message Cache]", error);
+    return res.status(500).json({
+      detail: error.message
+    });
+  }
+});
+var fetchChats = (req, res) => __async(void 0, null, function* () {
+  try {
+    const baseURL = path.resolve(path.dirname(""));
+    const chatsDirectory = path.join(baseURL, "cache", "chats.json");
+    const chats = fs.readFileSync(chatsDirectory);
+    res.status(200).send(JSON.parse(chats));
+  } catch (error) {
+    console.error("[Message Cache]", error);
+    return res.status(500).json({
+      detail: error.message
+    });
+  }
+});
 
 // src/controllers/new-chat.controller.ts
 import path2 from "path";
-import fs from "fs";
+import fs2 from "fs";
 
 // src/controllers/engine/generate.ts
 import { VectorStoreIndex as VectorStoreIndex2 } from "llamaindex";
@@ -419,24 +449,25 @@ var createNewChat = (req, res) => __async(void 0, null, function* () {
     console.log(uploadedFile);
     const baseURL = path2.resolve(path2.dirname(""));
     const cacheDir = path2.join(baseURL, "cache");
-    const directoryName = uploadedFile.name.replace(/\.[^/.]+$/, "").replace(/[\s.]+/g, "");
+    const directoryName = uploadedFile.name.replace(/\.[^/.]+$/, "").replace(/[\s.]+/g, "") + (/* @__PURE__ */ new Date()).getTime();
     const newFolderPath = path2.join(cacheDir, directoryName);
     console.log(newFolderPath);
-    fs.mkdirSync(newFolderPath);
+    fs2.mkdirSync(newFolderPath);
     const newFolderDataPath = path2.join(newFolderPath, "data");
-    fs.mkdirSync(newFolderDataPath);
+    fs2.mkdirSync(newFolderDataPath);
     uploadedFile.mv(path2.join(newFolderDataPath, uploadedFile.name));
     setCachePath(directoryName);
     yield generateDatasource(newFolderDataPath, newFolderPath).then(() => {
-      const oldChats = fs.readFileSync(path2.join(cacheDir, "chats.json"));
+      const oldChats = fs2.readFileSync(path2.join(cacheDir, "chats.json"));
       let newChats = JSON.parse(oldChats);
       newChats.push({
-        id: newChats.length,
+        key: directoryName,
         chatName: uploadedFile.name,
         cachePath: `/${directoryName}`
       });
-      fs.writeFileSync(path2.join(cacheDir, "chats.json"), JSON.stringify(newChats));
-      res.status(200).send("File uploaded");
+      fs2.writeFileSync(path2.join(cacheDir, "chats.json"), JSON.stringify(newChats));
+      fs2.writeFileSync(path2.join(newFolderPath, "messages.json"), "[]");
+      res.status(200).send(newChats);
     });
   } catch (error) {
     console.error("Error creating new chat:", error);
@@ -448,8 +479,10 @@ var createNewChat = (req, res) => __async(void 0, null, function* () {
 // src/routes/chat.route.ts
 var llmRouter = express.Router();
 llmRouter.route("/").post(chat);
-llmRouter.route("/message-cache").get(messageCache);
+llmRouter.route("/message-cache").get(getMessageCache);
+llmRouter.route("/set-message-cache").post(setMessagesCache);
 llmRouter.route("/new-chat").post(createNewChat);
+llmRouter.route("/get-chats").get(fetchChats);
 var chat_route_default = llmRouter;
 
 // index.ts
